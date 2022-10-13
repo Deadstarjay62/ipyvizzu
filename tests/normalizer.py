@@ -22,7 +22,5 @@ class Normalizer:
     def normalize_output(self, output: MagicMock, start_index: int = 0) -> str:
         """A method for merging and normalizing mocked test outputs."""
 
-        output_items = []
-        for block in output.call_args_list[start_index:]:
-            output_items.append(block.args[0])
+        output_items = [block.args[0] for block in output.call_args_list[start_index:]]
         return self.normalize_id("\n".join(output_items)).strip()

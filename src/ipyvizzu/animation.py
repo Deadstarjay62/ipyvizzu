@@ -114,36 +114,37 @@ class Data(dict, Animation):
     ) -> None:
         """A method used to add a dataframe to a Data() class instance."""
 
-        if not isinstance(data_frame, type(None)):
-            if isinstance(data_frame, pd.core.series.Series):
-                data_frame = pd.DataFrame(data_frame)
-            if not isinstance(data_frame, pd.DataFrame):
-                raise TypeError(
-                    "data_frame must be instance of pandas.DataFrame or pandas.Series"
+        if isinstance(data_frame, type(None)):
+            return
+        if isinstance(data_frame, pd.core.series.Series):
+            data_frame = pd.DataFrame(data_frame)
+        if not isinstance(data_frame, pd.DataFrame):
+            raise TypeError(
+                "data_frame must be instance of pandas.DataFrame or pandas.Series"
+            )
+        for name in data_frame.columns:
+            values = []
+            if is_numeric_dtype(data_frame[name].dtype):
+                infer_type = InferType.MEASURE
+                values = (
+                    data_frame[name]
+                    .fillna(default_measure_value)
+                    .astype(float)
+                    .values.tolist()
                 )
-            for name in data_frame.columns:
-                values = []
-                if is_numeric_dtype(data_frame[name].dtype):
-                    infer_type = InferType.MEASURE
-                    values = (
-                        data_frame[name]
-                        .fillna(default_measure_value)
-                        .astype(float)
-                        .values.tolist()
-                    )
-                else:
-                    infer_type = InferType.DIMENSION
-                    values = (
-                        data_frame[name]
-                        .fillna(default_dimension_value)
-                        .astype(str)
-                        .values.tolist()
-                    )
-                self.add_series(
-                    name,
-                    values,
-                    type=infer_type.value,
+            else:
+                infer_type = InferType.DIMENSION
+                values = (
+                    data_frame[name]
+                    .fillna(default_dimension_value)
+                    .astype(str)
+                    .values.tolist()
                 )
+            self.add_series(
+                name,
+                values,
+                type=infer_type.value,
+            )
 
     def add_data_frame_index(
         self,
@@ -194,9 +195,8 @@ class ConfigAttr(type):
         config_attr = cls("ConfigAttr", (object,), {"name": name})
         return config_attr._get_preset  # pylint: disable=no-member
 
-    def _get_preset(cls, preset):
-        config = Config(RawJavaScript(f"lib.presets.{cls.name}({preset})"))
-        return config
+    def _get_preset(self, preset):
+        return Config(RawJavaScript(f"lib.presets.{self.name}({preset})"))
 
 
 class Config(Animation, metaclass=ConfigAttr):
@@ -254,9 +254,7 @@ class AnimationMerger(dict, Animation):
 
     def _validate(self, animation: Animation) -> dict:
         data = animation.build()
-        common_keys = set(data).intersection(self)
-
-        if common_keys:
+        if common_keys := set(data).intersection(self):
             raise ValueError(f"Animation is already merged: {common_keys}")
 
         return data
